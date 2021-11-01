@@ -81,7 +81,7 @@ class Parser(commands.Cog):
                 names[i] = f"{i + 1}. {names[i]}"
             await ctx.send("\n".join(names))
 
-    @commands.command(name="parsing")
+    @commands.command(name="picture")
     async def parser(self, ctx, category_number: int):
         html = get_html("https://wallpaperscraft.ru/all/1920x1080")
         if html.status_code == 200:
