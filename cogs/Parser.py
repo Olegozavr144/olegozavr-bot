@@ -2,17 +2,18 @@ from random import randint
 import requests
 from bs4 import BeautifulSoup
 from discord.ext import commands
+import string
 
-URL = "https://wallpaperscraft.ru/catalog/city/1920x1080"
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 "
+                  "Safari/537.36",
     "Accept": "*/*"}
 HOST = "https://wallpaperscraft.ru"
 
 
-def get_content_on_pages(pages_count):
+def get_content_on_pages(pages_count, link):
     random_page = randint(1, pages_count)
-    html = get_html(f"{URL}/page{random_page}")
+    html = get_html(f"{link}/page{random_page}")
     picture_link = get_picture_link(html.text)
     return get_hq_picture(picture_link)
 
@@ -49,18 +50,50 @@ def get_html(url, params=None):
     return r
 
 
+def parse(link):
+    html = get_html(link)
+    if html.status_code == 200:
+        pages_count = get_pages_count(html.text)
+        return get_content_on_pages(pages_count, link)
+    else:
+        print("error")
+
+
 class Parser(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="parser")
-    async def parse(self, ctx):
-        html = get_html(URL)
+    @commands.command(name="categories")
+    async def categories(self, ctx):
+        html = get_html(HOST)
         if html.status_code == 200:
-            pages_count = get_pages_count(html.text)
-            await ctx.send(get_content_on_pages(pages_count))
-        else:
-            print("error")
+            soup = BeautifulSoup(html.text, "html.parser")
+            ul = soup.find("ul", class_="filters__list")
+            list_a = ul.find_all("a")
+            names = []
+            for a in list_a:
+                names.append(a.text)
+            for i in range(len(names)):
+                names[i] = names[i].replace(" ", '')
+                names[i] = names[i].replace("\n", '')
+                names[i] = names[i].rstrip(string.digits)
+            for i in range(len(names)):
+                names[i] = f"{i + 1}. {names[i]}"
+            await ctx.send("\n".join(names))
+
+    @commands.command(name="parsing")
+    async def parser(self, ctx, category_number: int):
+        html = get_html("https://wallpaperscraft.ru/all/1920x1080")
+        if html.status_code == 200:
+            soup = BeautifulSoup(html.text, "html.parser")
+            ul = soup.find("ul", class_="filters__list")
+            list_a = ul.find_all("a")
+            links = []
+            for a in list_a:
+                links.append(HOST + a.get("href"))
+            for number, link in enumerate(links, 1):
+                if number == category_number:
+                    await ctx.send(parse(link))
 
 
 def setup(bot):
